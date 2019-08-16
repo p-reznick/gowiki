@@ -30,7 +30,11 @@ func loadPage(title string) (*Page, error) {
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[len("/view/"):]
-	p, _ := loadPage(title)
+	p, err := loadPage(title)
+	if err != nil {
+		log.Printf("Warning, not found! Redirecting to edit page for %s.txt\n", title)
+		http.Redirect(w, r, "/edit/"+title, http.StatusFound)
+	}
 	log.Printf("Viewing %s.txt\n", title)
 	renderTemplate(w, "view.html", p)
 }
@@ -52,8 +56,11 @@ func renderTemplate(w http.ResponseWriter, temp string, p *Page) {
 }
 
 func main() {
+	port := ":8080"
 	http.HandleFunc("/view/", viewHandler)
 	http.HandleFunc("/edit/", editHandler)
 	// http.HandleFunc("/save/", saveHandler)
+
+	log.Printf("Server started! Listening on %s", port)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
