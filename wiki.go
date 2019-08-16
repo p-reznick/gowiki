@@ -31,9 +31,8 @@ func loadPage(title string) (*Page, error) {
 func viewHandler(w http.ResponseWriter, r *http.Request) {
 	title := r.URL.Path[len("/view/"):]
 	p, _ := loadPage(title)
-	t, _ := template.ParseFiles("view.html")
 	log.Printf("Viewing %s.txt\n", title)
-	t.Execute(w, p)
+	renderTemplate(w, "view.html", p)
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
@@ -42,8 +41,13 @@ func editHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		p = &Page{Title: title, Body: []byte("Trouble loading page :(")}
 	}
-	t, _ := template.ParseFiles("edit.html")
 	log.Printf("Editing %s.txt\n", title)
+	renderTemplate(w, "edit.html", p)
+}
+
+func renderTemplate(w http.ResponseWriter, temp string, p *Page) {
+	log.Printf("Rendering template %s", temp)
+	t, _ := template.ParseFiles(temp)
 	t.Execute(w, p)
 }
 
