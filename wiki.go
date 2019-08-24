@@ -1,17 +1,30 @@
 package main
 
 import (
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 )
 
 var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
+var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
 
 type Page struct {
 	Title string
 	Body  []byte
+}
+
+func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
+	m := validPath.FindStringSubmatch(r.URL.Path)
+	if m == nil {
+		http.NotFound(w, r)
+		return "", errors.New("Invalid Page Title")
+	}
+	log.Printf("Extracted title: %s from request", m[2])
+	return m[2], nil
 }
 
 func (p *Page) save() error {
@@ -22,11 +35,11 @@ func (p *Page) save() error {
 
 func loadPage(title string) (*Page, error) {
 	filename := title + ".txt"
+	log.Printf("Loading %s\n", filename)
 	body, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("Loading %s\n", filename)
 	return &Page{Title: title, Body: body}, nil
 }
 
@@ -39,7 +52,10 @@ func renderTemplate(w http.ResponseWriter, temp string, p *Page) {
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/view/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
 	p, err := loadPage(title)
 	if err != nil {
 		log.Printf("Warning, not found! Redirecting to edit page for %s.txt\n", title)
@@ -50,20 +66,27 @@ func viewHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func editHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/edit/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
+	log.Printf("Editing %s.txt\n", title)
 	p, err := loadPage(title)
 	if err != nil {
 		p = &Page{Title: title, Body: []byte("Trouble loading page :(")}
 	}
-	log.Printf("Editing %s.txt\n", title)
 	renderTemplate(w, "edit.html", p)
 }
 
 func saveHandler(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Path[len("/save/"):]
+	title, err := getTitle(w, r)
+	if err != nil {
+		return
+	}
+	log.Printf("Saving %s", title)
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
-	err := p.save()
+	err = p.save()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
