@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"log"
@@ -70,6 +71,15 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
+func frontPageHandler(w http.ResponseWriter, _ *http.Request) {
+	file, err := ioutil.ReadFile("./templates/frontpage.html")
+	if err != nil {
+		log.Printf("Error %s", err)
+		fmt.Fprint(w, "Uh oh, can't load the landing page...")
+	}
+	w.Write(file)
+}
+
 func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m := validPath.FindStringSubmatch(r.URL.Path)
@@ -81,11 +91,18 @@ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.Handl
 	}
 }
 
+func redirectHandler(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Redirecting to frontpage...")
+	http.Redirect(w, r, "/frontpage", http.StatusFound)
+}
+
 func main() {
 	port := ":8080"
 	http.HandleFunc("/view/", makeHandler(viewHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
 	http.HandleFunc("/save/", makeHandler(saveHandler))
+	http.HandleFunc("/frontpage", frontPageHandler)
+	http.HandleFunc("/", redirectHandler)
 
 	log.Printf("Server started! Listening on %s", port)
 	log.Fatal(http.ListenAndServe(":8080", nil))
